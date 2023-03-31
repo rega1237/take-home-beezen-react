@@ -1,12 +1,13 @@
 import { useRef, useEffect, useState } from "react";
 import TagInput from "./TagInput";
 
-
 const AlertForm = (props) => {
   const typeRef = useRef("");
   const descriptionRef = useRef("");
   const [tags, setTags] = useState([]);
   const [userIp, setUserIp] = useState("");
+  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const getIp = () => {
     fetch("https://api.bigdatacloud.net/data/client-ip")
@@ -21,14 +22,36 @@ const AlertForm = (props) => {
     getIp();
   }, []);
 
+  const setErrorToFalse = () => {
+    setTimeout(() => {
+      setError(false);
+      setErrorMessage("");
+    }, 3000);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (typeRef.current.value === "select") {
+      setError(true);
+      setErrorMessage("Please select a type");
+
+      setErrorToFalse();
+      return;
+    } else if (descriptionRef.current.value === "") {
+      setError(true);
+      setErrorMessage("Please write a description");
+
+      setErrorToFalse();
+      return;
+    }
+
     const alertMessage = {
       alert: {
         type: typeRef.current.value,
         description: descriptionRef.current.value,
         origin: userIp,
-        tag_names: tags
+        tag_names: tags,
       },
     };
 
@@ -36,12 +59,19 @@ const AlertForm = (props) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "access-token": localStorage.getItem("access-token"),
+        client: localStorage.getItem("client"),
+        uid: localStorage.getItem("uid"),
       },
       body: JSON.stringify(alertMessage),
     })
-      .then((response) => response.json())
+      .then((response) => {
+        const accessToken = response.headers.get("access-token");
+        localStorage.setItem("access-token", accessToken);
+
+        return response.json();
+      })
       .then((data) => {
-        console.log(data);
         props.fetching();
         props.hide();
       })
@@ -51,15 +81,22 @@ const AlertForm = (props) => {
     descriptionRef.current.value = "";
   };
 
-
-
   return (
     <>
       <div className=" py-6 flex flex-col justify-center sm:py-12">
         <div className="relative py-3 sm:max-w-xl sm:mx-auto">
           <div className="relative px-4 py-10 bg-white mx-8 md:mx-0 shadow rounded-3xl sm:p-10">
             <div className="max-w-md mx-auto">
-              <div className="flex items-center space-x-5">
+              {error && (
+                <div
+                  className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+                  role="alert"
+                >
+                  <strong className="font-bold">Error:</strong>
+                  <span className="block sm:inline">{errorMessage}</span>
+                </div>
+              )}
+              <div className="flex items-center space-x-5 mt-3">
                 <div className="h-14 w-14 bg-yellow-200 rounded-full flex flex-shrink-0 justify-center items-center text-yellow-500 text-2xl font-mono">
                   A
                 </div>
